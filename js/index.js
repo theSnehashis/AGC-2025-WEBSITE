@@ -1,64 +1,109 @@
-/* ── SLIDER ── */
-    const wrap = document.getElementById('slidesWrap');
-    const dots = document.getElementById('slDots');
-    const n = wrap.children.length;
-    let cur = 0, timer;
-    for (let i = 0; i < n; i++) {
-      const d = document.createElement('div');
-      d.className = 'dot' + (i === 0 ? ' active' : '');
-      d.onclick = () => { go(i); reset(); };
-      dots.appendChild(d);
-    }
-    function go(i) {
-      cur = (i + n) % n;
-      wrap.style.transform = `translateX(-${cur * 100}%)`;
-      [...dots.children].forEach((d, j) => d.classList.toggle('active', j === cur));
-    }
-    function reset() { clearInterval(timer); timer = setInterval(() => go(cur + 1), 5500); }
-    document.getElementById('prevBtn').onclick = () => { go(cur - 1); reset(); };
-    document.getElementById('nextBtn').onclick = () => { go(cur + 1); reset(); };
-    reset();
+
+    /* ── SLIDER ── */
+    (function () {
+      const wrap = document.getElementById('slidesWrap');
+      const dots = document.getElementById('slDots');
+      if (!wrap || !dots) return;
+      const n = wrap.children.length;
+      let cur = 0, timer;
+      for (let i = 0; i < n; i++) {
+        const d = document.createElement('div');
+        d.className = 'dot' + (i === 0 ? ' active' : '');
+        d.onclick = () => { go(i); reset(); };
+        dots.appendChild(d);
+      }
+      function go(i) {
+        cur = (i + n) % n;
+        wrap.style.transform = `translateX(-${cur * 100}%)`;
+        [...dots.children].forEach((d, j) => d.classList.toggle('active', j === cur));
+      }
+      function reset() { clearInterval(timer); timer = setInterval(() => go(cur + 1), 5500); }
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      if (prevBtn) prevBtn.onclick = () => { go(cur - 1); reset(); };
+      if (nextBtn) nextBtn.onclick = () => { go(cur + 1); reset(); };
+      reset();
+    })();
 
     /* ── COUNTDOWN ── */
-    const T = new Date('2025-03-08T09:00:00+05:30').getTime();
+    const T = new Date('2026-03-13T09:00:00+05:30').getTime();
     function tick() {
       const d = T - Date.now();
       if (d <= 0) {
-        ['cdD', 'cdH', 'cdM', 'cdS'].forEach(id => document.getElementById(id).textContent = '00');
+        ['cdD','cdH','cdM','cdS'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = '00';
+        });
         return;
       }
-      document.getElementById('cdD').textContent = String(Math.floor(d / 86400000)).padStart(2, '0');
-      document.getElementById('cdH').textContent = String(Math.floor(d % 86400000 / 3600000)).padStart(2, '0');
-      document.getElementById('cdM').textContent = String(Math.floor(d % 3600000 / 60000)).padStart(2, '0');
-      document.getElementById('cdS').textContent = String(Math.floor(d % 60000 / 1000)).padStart(2, '0');
+      const cdD = document.getElementById('cdD');
+      const cdH = document.getElementById('cdH');
+      const cdM = document.getElementById('cdM');
+      const cdS = document.getElementById('cdS');
+      if (cdD) cdD.textContent = String(Math.floor(d / 86400000)).padStart(2, '0');
+      if (cdH) cdH.textContent = String(Math.floor(d % 86400000 / 3600000)).padStart(2, '0');
+      if (cdM) cdM.textContent = String(Math.floor(d % 3600000 / 60000)).padStart(2, '0');
+      if (cdS) cdS.textContent = String(Math.floor(d % 60000 / 1000)).padStart(2, '0');
     }
-    tick(); setInterval(tick, 1000);
+    tick();
+    setInterval(tick, 1000);
 
-    /* ── PROGRAM CHAIRS FLIP LOGIC ── */
-document.addEventListener('DOMContentLoaded', function() {
-  const cards = document.querySelectorAll('.chair-card');
+    /* ── FLIP CARDS — exclusive toggle ─────────────────────────────────────
+       One shared activeCard across all card types (.chair-card, .flip-card,
+       .speaker-flip-card). Opening any card closes the previously open one.
+       No CSS :hover flip rule exists — JS drives everything so touch and
+       mouse behave identically.
+    ── */
+    document.addEventListener('DOMContentLoaded', function () {
 
-  cards.forEach(card => {
-    card.addEventListener('click', function(e) {
-      // 1. Check if this specific card is already flipped
-      const isFlipped = this.classList.contains('flipped');
+      let activeCard = null;
 
-      // 2. Remove 'flipped' from ALL cards (Resetting others)
-      cards.forEach(c => c.classList.remove('flipped'));
+      function bindExclusiveFlip(cards, flipClass) {
+        cards.forEach(function (card) {
+          if (card.dataset.flipBound) return;
+          card.dataset.flipBound = 'true';
 
-      // 3. If the clicked card wasn't flipped, flip it now
-      // If it WAS flipped, it stays removed (flips back)
-      if (!isFlipped) {
-        this.classList.add('flipped');
+          card.addEventListener('click', function (e) {
+            e.stopPropagation();
+
+            if (card === activeCard) {
+              /* same card tapped — close it */
+              card.classList.remove(flipClass);
+              card.setAttribute('aria-pressed', 'false');
+              activeCard = null;
+            } else {
+              /* close whatever is open */
+              if (activeCard) {
+                activeCard.classList.remove('flipped', 'is-flipped');
+                activeCard.setAttribute('aria-pressed', 'false');
+              }
+              card.classList.add(flipClass);
+              card.setAttribute('aria-pressed', 'true');
+              activeCard = card;
+            }
+          });
+
+          /* Keyboard: Enter / Space */
+          card.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              card.click();
+            }
+          });
+        });
       }
-      
-      // Prevent event bubbling if necessary
-      e.stopPropagation();
-    });
-  });
 
-  // 4. Optional: Tap anywhere else on the page to flip all cards back
-  document.addEventListener('click', function() {
-    cards.forEach(c => c.classList.remove('flipped'));
-  });
-});
+      bindExclusiveFlip(document.querySelectorAll('.chair-card'),        'flipped');
+      bindExclusiveFlip(document.querySelectorAll('.flip-card'),         'is-flipped');
+      bindExclusiveFlip(document.querySelectorAll('.speaker-flip-card'), 'flipped');
+
+      /* Click outside any card → close the active one */
+      document.addEventListener('click', function (e) {
+        if (activeCard && !activeCard.contains(e.target)) {
+          activeCard.classList.remove('flipped', 'is-flipped');
+          activeCard.setAttribute('aria-pressed', 'false');
+          activeCard = null;
+        }
+      });
+    });
+

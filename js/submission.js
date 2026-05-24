@@ -1,6 +1,6 @@
 /**
- * sponsor.js
- * Handles flip card exclusive toggling and table row interactions.
+ * submission.js
+ * Handles flip card exclusive toggling for publication cover cards.
  */
 
 let activeCard = null;
@@ -26,8 +26,4 @@ document.querySelectorAll('.flip-card').forEach(card => {
             card.click();
         }
     });
-});
-
-document.querySelectorAll('.sponsor-table tbody tr').forEach(row => {
-    row.style.cursor = 'pointer';
 });
